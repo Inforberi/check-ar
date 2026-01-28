@@ -1,12 +1,14 @@
 "use client";
 
 import { useState } from "react";
-import { ExternalLink, Smartphone, Apple, Box } from "lucide-react";
+import { ExternalLink, Smartphone, Apple, Box, Upload } from "lucide-react";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { Button } from "@/components/ui/button";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import { QrCodeModal, type QrCodeModalVariant } from "@/components/qr-code-modal";
+import { UploadModelsModal } from "@/components/upload-models-modal";
 import type { VarProduct, ProductChild, ProductTestStatus } from "@/lib/types";
 
 interface ProductCardProps {
@@ -17,6 +19,8 @@ interface ProductCardProps {
   onHumanVerifiedChange: (productId: number, verified: boolean) => void;
   onManualIncorrectChange: (productId: number, incorrect: boolean) => void;
   onNotesChange: (productId: number, notes: string) => void;
+  /** После успешной загрузки AR-моделей (опционально — обновить список продуктов) */
+  onUploadModelsSuccess?: () => void;
 }
 
 const STRAPI_ADMIN_URL = "https://strapi.fiftyfourms.com/admin/content-manager/collection-types/api::product.product";
@@ -30,16 +34,21 @@ export const ProductCard = ({
   onHumanVerifiedChange,
   onManualIncorrectChange,
   onNotesChange,
+  onUploadModelsSuccess,
 }: ProductCardProps) => {
   const [qrModal, setQrModal] = useState<{
     open: boolean;
     variant: QrCodeModalVariant | null;
   }>({ open: false, variant: null });
+  const [uploadModalOpen, setUploadModalOpen] = useState(false);
 
   const allChildren = product.childrens || [];
   const children = showOnlyManualIncorrect
     ? allChildren.filter((c) => statuses[c.id]?.manualIncorrect)
     : allChildren;
+  const childIdsForUpload = allChildren
+    .filter((c) => statuses[c.id]?.manualIncorrect)
+    .map((c) => c.id);
 
   const withArCount = allChildren.filter(
     (c) => c.ar_model_ios || c.ar_model_and
@@ -276,8 +285,28 @@ export const ProductCard = ({
               );
             })
           )}
+          <div className="flex justify-end pt-4 border-t border-border">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={() => setUploadModalOpen(true)}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4" />
+              Загрузить модели
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
+      <UploadModelsModal
+        open={uploadModalOpen}
+        onOpenChange={setUploadModalOpen}
+        varProductId={product.id}
+        childIds={childIdsForUpload}
+        onSuccess={onUploadModelsSuccess}
+      />
 
       <QrCodeModal
         open={qrModal.open}
