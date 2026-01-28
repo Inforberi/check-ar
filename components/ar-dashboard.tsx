@@ -433,6 +433,7 @@ export const ArDashboard = () => {
               onHumanVerifiedChange={updateHumanVerified}
               onManualIncorrectChange={updateManualIncorrect}
               onNotesChange={updateNotes}
+              onUploadModelsSuccess={() => mutate()}
             />
           ))}
         </div>
