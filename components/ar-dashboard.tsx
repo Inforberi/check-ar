@@ -12,6 +12,13 @@ import type { NormalizedResponse } from "@/lib/types";
 
 const fetcher = (url: string) => fetch(url).then((res) => res.json());
 
+// Ключи для localStorage
+const STORAGE_KEYS = {
+  SEARCH_QUERY: "ar-dashboard-search-query",
+  URL_SEARCH: "ar-dashboard-url-search",
+  STATUS_FILTER: "ar-dashboard-status-filter",
+};
+
 // Extract product IDs from Strapi Admin URLs
 const extractIdsFromUrls = (urlText: string): number[] => {
   const lines = urlText.split("\n").filter((l) => l.trim());
@@ -27,9 +34,47 @@ const extractIdsFromUrls = (urlText: string): number[] => {
 };
 
 export const ArDashboard = () => {
-  const [searchQuery, setSearchQuery] = useState("");
-  const [urlSearch, setUrlSearch] = useState("");
-  const [statusFilter, setStatusFilter] = useState<FilterStatus>("all");
+  // Загружаем сохраненные значения из localStorage при инициализации
+  const [searchQuery, setSearchQuery] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORAGE_KEYS.SEARCH_QUERY) || "";
+    }
+    return "";
+  });
+  const [urlSearch, setUrlSearch] = useState(() => {
+    if (typeof window !== "undefined") {
+      return localStorage.getItem(STORAGE_KEYS.URL_SEARCH) || "";
+    }
+    return "";
+  });
+  const [statusFilter, setStatusFilter] = useState<FilterStatus>(() => {
+    if (typeof window !== "undefined") {
+      const saved = localStorage.getItem(STORAGE_KEYS.STATUS_FILTER);
+      if (saved && ["all", "with_ar", "tested", "not_tested", "failed", "failed_filled", "failed_empty", "human_verified", "manual_incorrect"].includes(saved)) {
+        return saved as FilterStatus;
+      }
+    }
+    return "all";
+  });
+
+  // Сохраняем в localStorage при изменении
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.SEARCH_QUERY, searchQuery);
+    }
+  }, [searchQuery]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.URL_SEARCH, urlSearch);
+    }
+  }, [urlSearch]);
+
+  useEffect(() => {
+    if (typeof window !== "undefined") {
+      localStorage.setItem(STORAGE_KEYS.STATUS_FILTER, statusFilter);
+    }
+  }, [statusFilter]);
 
   const {
     statuses,
