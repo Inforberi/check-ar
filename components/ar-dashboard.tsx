@@ -50,7 +50,7 @@ export const ArDashboard = () => {
   const [statusFilter, setStatusFilter] = useState<FilterStatus>(() => {
     if (typeof window !== "undefined") {
       const saved = localStorage.getItem(STORAGE_KEYS.STATUS_FILTER);
-      if (saved && ["all", "with_ar", "tested", "not_tested", "failed", "failed_filled", "failed_empty", "human_verified", "manual_incorrect"].includes(saved)) {
+      if (saved && ["all", "all_variants", "human_verified", "manual_incorrect"].includes(saved)) {
         return saved as FilterStatus;
       }
     }
@@ -148,13 +148,6 @@ export const ArDashboard = () => {
     if (statusFilter !== "all") {
       result = result.filter((p) => {
         const children = p.childrens || [];
-        const hasAr = children.some(
-          (c) => c.ar_model_ios || c.ar_model_and
-        );
-
-        if (statusFilter === "with_ar") {
-          return hasAr;
-        }
 
         if (statusFilter === "human_verified") {
           return children.some((c) => statuses[c.id]?.humanVerified);
@@ -164,60 +157,13 @@ export const ArDashboard = () => {
           return children.some((c) => statuses[c.id]?.manualIncorrect);
         }
 
-        // Хоть 1 с AR и хоть 1 без AR: смешанные карточки
-        if (statusFilter === "failed_filled") {
-          const hasAnyWithAr = children.some((c) => c.ar_model_ios || c.ar_model_and);
-          const hasAnyWithoutAr = children.some((c) => !c.ar_model_ios && !c.ar_model_and);
-          return hasAnyWithAr && hasAnyWithoutAr;
-        }
-        // Ни одного с AR: у VarProduct ни у одного варианта нет AR (все без iOS и Android AR)
-        if (statusFilter === "failed_empty") {
-          return (
-            children.length > 0 &&
-            children.every((c) => !c.ar_model_ios && !c.ar_model_and)
+        if (statusFilter === "all_variants") {
+          // Показываем все варианты, которые не имеют статуса humanVerified или manualIncorrect
+          // То есть варианты без этих статусов
+          return children.some(
+            (c) =>
+              !statuses[c.id]?.humanVerified && !statuses[c.id]?.manualIncorrect
           );
-        }
-
-        if (!hasAr) return false;
-
-        const childrenWithAr = children.filter(
-          (c) => c.ar_model_ios || c.ar_model_and
-        );
-
-        if (statusFilter === "tested") {
-          return childrenWithAr.some((c) => {
-            const status = statuses[c.id];
-            return (
-              status &&
-              (status.iosStatus !== "not_tested" ||
-                status.androidStatus !== "not_tested")
-            );
-          });
-        }
-
-        if (statusFilter === "not_tested") {
-          return childrenWithAr.some((c) => {
-            const status = statuses[c.id];
-            return (
-              !status ||
-              ((c.ar_model_ios && status.iosStatus === "not_tested") ||
-                (c.ar_model_and && status.androidStatus === "not_tested"))
-            );
-          });
-        }
-
-        if (statusFilter === "failed") {
-          const hasFailedTest = childrenWithAr.some((c) => {
-            const status = statuses[c.id];
-            return (
-              status &&
-              (status.iosStatus === "failed" || status.androidStatus === "failed")
-            );
-          });
-          const hasNoAr = children.some(
-            (c) => !c.ar_model_ios && !c.ar_model_and
-          );
-          return hasFailedTest || hasNoAr;
         }
 
         return true;
@@ -362,6 +308,7 @@ export const ArDashboard = () => {
     let failedEmptyProductCount = 0;  // VarProduct, где ни у одного варианта нет AR
     let humanVerifiedCount = 0;
     let manualIncorrectCount = 0;
+    let notCheckedCount = 0; // Продукты без humanVerified и без manualIncorrect
 
     for (const p of products) {
       const children = p.childrens || [];
@@ -378,8 +325,14 @@ export const ArDashboard = () => {
         const hasAr = !!c.ar_model_ios || !!c.ar_model_and;
         const status = statuses[c.id];
 
-        if (status?.humanVerified) humanVerifiedCount++;
-        if (status?.manualIncorrect) manualIncorrectCount++;
+        if (status?.humanVerified) {
+          humanVerifiedCount++;
+        } else if (status?.manualIncorrect) {
+          manualIncorrectCount++;
+        } else {
+          // Не проверено - нет ни humanVerified, ни manualIncorrect
+          notCheckedCount++;
+        }
 
         if (hasAr) {
           withArChildren++;
@@ -410,6 +363,7 @@ export const ArDashboard = () => {
       failedEmpty: failedEmptyProductCount,
       humanVerified: humanVerifiedCount,
       manualIncorrect: manualIncorrectCount,
+      notChecked: notCheckedCount,
     };
   }, [products, statuses]);
 
@@ -456,9 +410,25 @@ export const ArDashboard = () => {
         onStatusFilterChange={setStatusFilter}
         onExportCsv={exportCsv}
         filteredCount={filteredProducts.length}
-        filteredChildrenCount={filteredChildrenCount}
+        filteredChildrenCount={filteredProducts.reduce(
+          (acc, p) => acc + (p.childrens?.length || 0),
+          0
+        )}
         unmatchedUrls={unmatchedUrls}
-        stats={stats}
+        filteredStats={{
+          varProducts: filteredProducts.length,
+          totalProducts: filteredProducts.reduce(
+            (acc, p) => acc + (p.childrens?.length || 0),
+            0
+          ),
+        }}
+        fullStats={{
+          varProducts: stats.varProducts,
+          totalProducts: stats.total,
+          humanVerified: stats.humanVerified,
+          manualIncorrect: stats.manualIncorrect,
+          notChecked: stats.notChecked,
+        }}
       />
 
       {filteredProducts.length === 0 ? (

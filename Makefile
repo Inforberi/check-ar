@@ -33,6 +33,6 @@ db-init:
 # Бэкап БД через Docker (не требует pg_dump на хосте). Контейнер postgres должен быть запущен.
 backup:
 	@mkdir -p backups
-	@docker compose exec -T postgres pg_dump -U postgres ar_prompts -F p > backups/ar_prompts_$$(date +%Y%m%d_%H%M%S).sql
+	@docker compose exec -T postgres pg_dump -U postgres ar_prompts -F p > backups/ar_prompts_$$(date +%Y-%m-%d_%H-%M-%S).sql
 	@echo "Backup saved to backups/"
 	@ls -la backups/*.sql 2>/dev/null | tail -1

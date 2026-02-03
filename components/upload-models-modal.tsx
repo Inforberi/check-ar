@@ -151,16 +151,21 @@ export function UploadModelsModal({
 
   const validAndroid = androidFile && isValidAndroid(androidFile);
   const validIos = iosFile && isValidIos(iosFile);
-  const canSubmit = validAndroid && validIos && childIds.length > 0 && !loading;
+  // Можно загрузить только Android, только iOS, или оба
+  const canSubmit = (validAndroid || validIos) && childIds.length > 0 && !loading;
 
   const handleSubmit = useCallback(async () => {
-    if (!validAndroid || !validIos || childIds.length === 0) return;
+    if ((!validAndroid && !validIos) || childIds.length === 0) return;
     setError(null);
     setLoading(true);
     try {
       const form = new FormData();
-      form.append("android", androidFile!);
-      form.append("ios", iosFile!);
+      if (androidFile && validAndroid) {
+        form.append("android", androidFile);
+      }
+      if (iosFile && validIos) {
+        form.append("ios", iosFile);
+      }
       form.append("varProductId", String(varProductId));
       form.append("childIds", JSON.stringify(childIds));
 
@@ -190,6 +195,7 @@ export function UploadModelsModal({
     varProductId,
     onSuccess,
     onOpenChange,
+    loading,
   ]);
 
   const handleOpenChange = useCallback(
@@ -231,12 +237,12 @@ export function UploadModelsModal({
           />
           {childIds.length === 0 && (
             <p className="text-sm text-amber-600">
-              Отметьте хотя бы один вариант «Некорректно (вручную)», чтобы привязать к нему модели.
+              Нет вариантов для загрузки. Отметьте хотя бы один вариант «Некорректно (вручную)» для загрузки в некорректные.
             </p>
           )}
           {childIds.length > 0 && (
             <p className="text-sm text-muted-foreground">
-              Модели будут привязаны к {childIds.length} варианту(ам).
+              Модели будут привязаны к {childIds.length} варианту(ам). Можно загрузить только Android, только iOS, или оба файла.
             </p>
           )}
           {error && (

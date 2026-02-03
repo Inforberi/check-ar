@@ -41,6 +41,7 @@ export const ProductCard = ({
     variant: QrCodeModalVariant | null;
   }>({ open: false, variant: null });
   const [uploadModalOpen, setUploadModalOpen] = useState(false);
+  const [uploadToAll, setUploadToAll] = useState(false);
 
   const allChildren = product.childrens || [];
   const children = showOnlyManualIncorrect
@@ -49,6 +50,7 @@ export const ProductCard = ({
   const childIdsForUpload = allChildren
     .filter((c) => statuses[c.id]?.manualIncorrect)
     .map((c) => c.id);
+  const allChildIds = allChildren.map((c) => c.id);
 
   const withArCount = allChildren.filter(
     (c) => c.ar_model_ios || c.ar_model_and
@@ -285,16 +287,38 @@ export const ProductCard = ({
               );
             })
           )}
-          <div className="flex justify-end pt-4 border-t border-border">
+          <div className="flex flex-wrap justify-end gap-2 pt-4 border-t border-border">
+            <Button
+              type="button"
+              variant="default"
+              size="sm"
+              onClick={() => {
+                setUploadToAll(true);
+                setUploadModalOpen(true);
+              }}
+              className="gap-2"
+            >
+              <Upload className="h-4 w-4 shrink-0" />
+              <span className="text-left">Загрузить во все варианты</span>
+              <span className="ml-1 text-xs opacity-90 shrink-0">({allChildIds.length})</span>
+            </Button>
             <Button
               type="button"
               variant="outline"
               size="sm"
-              onClick={() => setUploadModalOpen(true)}
+              onClick={() => {
+                setUploadToAll(false);
+                setUploadModalOpen(true);
+              }}
               className="gap-2"
+              disabled={childIdsForUpload.length === 0}
+              title={childIdsForUpload.length === 0 ? "Нет вариантов, отмеченных как некорректные" : ""}
             >
-              <Upload className="h-4 w-4" />
-              Загрузить модели
+              <Upload className="h-4 w-4 shrink-0" />
+              <span className="text-left">Загрузить в некорректные</span>
+              {childIdsForUpload.length > 0 && (
+                <span className="ml-1 text-xs opacity-70 shrink-0">({childIdsForUpload.length})</span>
+              )}
             </Button>
           </div>
         </CardContent>
@@ -304,7 +328,7 @@ export const ProductCard = ({
         open={uploadModalOpen}
         onOpenChange={setUploadModalOpen}
         varProductId={product.id}
-        childIds={childIdsForUpload}
+        childIds={uploadToAll ? allChildIds : childIdsForUpload}
         onSuccess={onUploadModelsSuccess}
       />
 

@@ -1,17 +1,10 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
-import { Search, Filter, Link2, Loader2, Download } from "lucide-react";
+import { useState, useMemo } from "react";
+import { Search, Link2, Download } from "lucide-react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import {
   Collapsible,
@@ -21,12 +14,7 @@ import {
 
 export type FilterStatus =
   | "all"
-  | "with_ar"
-  | "tested"
-  | "not_tested"
-  | "failed"
-  | "failed_filled"
-  | "failed_empty"
+  | "all_variants"
   | "human_verified"
   | "manual_incorrect";
 
@@ -41,17 +29,18 @@ interface ProductFiltersProps {
   filteredCount: number;
   filteredChildrenCount: number;
   unmatchedUrls?: string[];
-  stats: {
+  // Статистика из отфильтрованного списка
+  filteredStats: {
     varProducts: number;
-    total: number;
-    withAr: number;
-    tested: number;
-    passed: number;
-    failed: number;
-    failedFilled: number;
-    failedEmpty: number;
+    totalProducts: number;
+  };
+  // Полная статистика из всех продуктов
+  fullStats: {
+    varProducts: number;
+    totalProducts: number;
     humanVerified: number;
     manualIncorrect: number;
+    notChecked: number;
   };
 }
 
@@ -66,41 +55,37 @@ export const ProductFilters = ({
   filteredCount,
   filteredChildrenCount,
   unmatchedUrls,
-  stats,
+  filteredStats,
+  fullStats,
 }: ProductFiltersProps) => {
   const [urlSearchOpen, setUrlSearchOpen] = useState(false);
-  const [selectedFilter, setSelectedFilter] = useState<FilterStatus>(statusFilter);
-  const [isApplying, setIsApplying] = useState(false);
-
-  useEffect(() => {
-    setSelectedFilter(statusFilter);
-  }, [statusFilter]);
 
   const urlCount = useMemo(
     () => urlSearch.split("\n").filter((l) => l.trim()).length,
     [urlSearch]
   );
 
-  const handleFind = () => {
-    setIsApplying(true);
-    onStatusFilterChange(selectedFilter);
-    setTimeout(() => setIsApplying(false), 500);
-  };
-
-  const filterLabels: Record<FilterStatus, string> = {
-    all: "Все продукты",
-    with_ar: "С AR-моделями",
-    tested: "Протестированные",
-    not_tested: "Не проверенные",
-    failed: "С ошибками",
-    failed_filled: "Хоть 1 не заполнен",
-    failed_empty: "Ни одного не заполнено",
-    human_verified: "Проверено человеком",
-    manual_incorrect: "Некорректно (вручную)",
-  };
-
   return (
     <div className="space-y-4">
+      {/* Полная статистика (из всех продуктов) - выше поиска */}
+      <div className="flex flex-wrap gap-2">
+        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+          VarProducts: {fullStats.varProducts}
+        </Badge>
+        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+          Всего продуктов: {fullStats.totalProducts}
+        </Badge>
+        <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
+          Проверено OK: {fullStats.humanVerified}
+        </Badge>
+        <Badge variant="outline" className="border-red-500/50 text-red-400">
+          Некорректно (вручную): {fullStats.manualIncorrect}
+        </Badge>
+        <Badge variant="outline" className="border-border text-muted-foreground">
+          Не проверено: {fullStats.notChecked}
+        </Badge>
+      </div>
+
       <div className="flex flex-col sm:flex-row gap-3">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
@@ -121,36 +106,6 @@ export const ProductFilters = ({
           >
             <Link2 className="h-4 w-4" />
           </Button>
-          <Select value={selectedFilter} onValueChange={(v) => setSelectedFilter(v as FilterStatus)}>
-            <SelectTrigger className="w-[180px] bg-secondary/50 border-border">
-              <Filter className="h-4 w-4 mr-2 shrink-0" />
-              <SelectValue placeholder="Все продукты" />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="all">Все продукты</SelectItem>
-              <SelectItem value="with_ar">С AR-моделями</SelectItem>
-              <SelectItem value="tested">Протестированные</SelectItem>
-              <SelectItem value="not_tested">Не проверенные</SelectItem>
-              <SelectItem value="failed">С ошибками</SelectItem>
-              <SelectItem value="failed_filled">Хоть 1 не заполнен</SelectItem>
-              <SelectItem value="failed_empty">Ни одного не заполнено</SelectItem>
-              <SelectItem value="human_verified">Проверено человеком</SelectItem>
-              <SelectItem value="manual_incorrect">Некорректно (вручную)</SelectItem>
-            </SelectContent>
-          </Select>
-          <Button
-            onClick={handleFind}
-            disabled={isApplying}
-            className="shrink-0 gap-2 bg-primary text-primary-foreground hover:bg-primary/90 cursor-pointer"
-            title="Применить фильтр"
-          >
-            {isApplying ? (
-              <Loader2 className="h-4 w-4 animate-spin" />
-            ) : (
-              <Search className="h-4 w-4" />
-            )}
-            {isApplying ? "Применяем…" : "Найти"}
-          </Button>
           {onExportCsv && (
             <Button
               variant="outline"
@@ -164,13 +119,6 @@ export const ProductFilters = ({
           )}
         </div>
       </div>
-
-      {/* Подсказка: какой фильтр сейчас применён */}
-      {statusFilter !== "all" && (
-        <p className="text-sm text-muted-foreground">
-          Показано: <span className="text-foreground font-medium">{filterLabels[statusFilter]}</span>
-        </p>
-      )}
 
       <Collapsible open={urlSearchOpen} onOpenChange={setUrlSearchOpen}>
         <CollapsibleContent className="space-y-2">
@@ -218,62 +166,69 @@ export const ProductFilters = ({
         </CollapsibleContent>
       </Collapsible>
 
+      {/* Кнопки фильтрации */}
       <div className="flex flex-wrap gap-2">
-        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
-          VarProducts: {stats.varProducts}
-        </Badge>
-        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
-          Всего продуктов: {stats.total}
-        </Badge>
-        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
-          С AR: {stats.withAr}
-        </Badge>
-        <Badge variant="outline" className="border-emerald-500/50 text-emerald-400">
-          Прошло: {stats.passed}
-        </Badge>
-        <Badge variant="outline" className="border-red-500/50 text-red-400">
-          Ошибки: {stats.failed}
-        </Badge>
-        <Badge variant="outline" className="border-blue-500/50 text-blue-400">
-          Проверено: {stats.humanVerified}
-        </Badge>
-        <Badge variant="outline" className="border-border text-muted-foreground">
-          Не проверено: {stats.withAr - stats.tested}
-        </Badge>
-        <Badge variant="outline" className="border-red-500/50 text-red-400">
-          Некорректно (вручную): {stats.manualIncorrect}
-        </Badge>
+        <Button
+          variant={statusFilter === "all" ? "default" : "outline"}
+          size="sm"
+          onClick={() => onStatusFilterChange("all")}
+          className={
+            statusFilter === "all"
+              ? "bg-primary text-primary-foreground"
+              : "bg-transparent"
+          }
+          title="Показать все группы продуктов (Var-продукты)"
+        >
+          Все группы продуктов
+        </Button>
+        <Button
+          variant={statusFilter === "all_variants" ? "default" : "outline"}
+          size="sm"
+          onClick={() => onStatusFilterChange("all_variants")}
+          className={
+            statusFilter === "all_variants"
+              ? "bg-primary text-primary-foreground"
+              : "bg-transparent"
+          }
+          title="Показать варианты без отметок 'Проверено OK' и 'Некорректно'"
+        >
+          Варианты без отметок
+        </Button>
+        <Button
+          variant={statusFilter === "human_verified" ? "default" : "outline"}
+          size="sm"
+          onClick={() => onStatusFilterChange("human_verified")}
+          className={
+            statusFilter === "human_verified"
+              ? "bg-primary text-primary-foreground"
+              : "bg-transparent"
+          }
+          title="Показать варианты, отмеченные как проверенные"
+        >
+          Проверено OK
+        </Button>
+        <Button
+          variant={statusFilter === "manual_incorrect" ? "default" : "outline"}
+          size="sm"
+          onClick={() => onStatusFilterChange("manual_incorrect")}
+          className={
+            statusFilter === "manual_incorrect"
+              ? "bg-primary text-primary-foreground"
+              : "bg-transparent"
+          }
+          title="Показать варианты, отмеченные как некорректные"
+        >
+          Некорректно (вручную)
+        </Button>
       </div>
+
+      {/* Статистика из отфильтрованного списка */}
       <div className="flex flex-wrap gap-2">
-        <Badge
-          variant="outline"
-          className={
-            statusFilter === "failed_filled"
-              ? "border-amber-500/50 text-amber-400 bg-amber-500/10 cursor-pointer"
-              : "border-amber-500/30 text-amber-400/80 cursor-pointer hover:bg-amber-500/10"
-          }
-          title="Показать карточки, где есть и варианты с AR, и варианты без AR"
-          onClick={() => {
-            setSelectedFilter("failed_filled");
-            onStatusFilterChange("failed_filled");
-          }}
-        >
-          Хоть 1 не заполнен: {stats.failedFilled}
+        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+          VarProducts в фильтре: {filteredStats.varProducts}
         </Badge>
-        <Badge
-          variant="outline"
-          className={
-            statusFilter === "failed_empty"
-              ? "border-red-500/50 text-red-400 bg-red-500/10 cursor-pointer"
-              : "border-red-500/30 text-red-400/80 cursor-pointer hover:bg-red-500/10"
-          }
-          title="Показать карточки, где ни у одного варианта нет AR (iOS и Android пусто)"
-          onClick={() => {
-            setSelectedFilter("failed_empty");
-            onStatusFilterChange("failed_empty");
-          }}
-        >
-          Ни одного не заполнено: {stats.failedEmpty}
+        <Badge variant="secondary" className="bg-secondary text-secondary-foreground">
+          Продуктов в фильтре: {filteredStats.totalProducts}
         </Badge>
       </div>
     </div>

@@ -43,9 +43,6 @@ export async function POST(request: Request) {
              var_product_id = EXCLUDED.var_product_id,
              ar_model_ios = EXCLUDED.ar_model_ios,
              ar_model_android = EXCLUDED.ar_model_android,
-             human_verified = FALSE,
-             manual_incorrect = FALSE,
-             notes = NULL,
              updated_at = NOW()`,
           [v.variantId, v.varProductId, v.arIos, v.arAndroid]
         );
@@ -60,9 +57,6 @@ export async function POST(request: Request) {
         `UPDATE product_variants SET
            ar_model_ios = $1,
            ar_model_android = $2,
-           human_verified = FALSE,
-           manual_incorrect = FALSE,
-           notes = NULL,
            updated_at = NOW()
          WHERE variant_id = $3`,
         [v.arIos, v.arAndroid, v.variantId]

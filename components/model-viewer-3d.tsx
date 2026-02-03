@@ -4,7 +4,7 @@ import { useEffect, useState, Suspense } from "react";
 import type { ReactNode } from "react";
 import { Loader2 } from "lucide-react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, PerspectiveCamera, Environment } from "@react-three/drei";
+import { OrbitControls, PerspectiveCamera } from "@react-three/drei";
 import * as THREE from "three";
 import { GLTFLoader } from "three/examples/jsm/loaders/GLTFLoader.js";
 import { USDLoader } from "three/examples/jsm/loaders/USDLoader.js";
@@ -137,10 +137,12 @@ export function ModelViewer3d({
       >
         <Suspense fallback={null}>
           <PerspectiveCamera makeDefault position={[0, 0, 5]} fov={50} />
-          <ambientLight intensity={0.6} />
-          <directionalLight position={[10, 10, 5]} intensity={1} />
-          <directionalLight position={[-10, -10, -5]} intensity={0.4} />
-          <Environment preset="city" />
+          <ambientLight intensity={1.2} />
+          <directionalLight position={[10, 10, 5]} intensity={2} />
+          <directionalLight position={[-10, 10, -5]} intensity={1.5} />
+          <directionalLight position={[0, -10, 0]} intensity={0.8} />
+          <pointLight position={[5, 5, 5]} intensity={1} />
+          <pointLight position={[-5, 5, -5]} intensity={0.8} />
           <Model3d url={src} onLoad={handleLoad} onError={handleError} />
           <OrbitControls
             enablePan={true}
