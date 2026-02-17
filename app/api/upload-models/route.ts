@@ -70,11 +70,11 @@ export async function POST(request: Request) {
     }
   }
 
-  let childIds: number[];
+  let childIds: (number | string)[];
   try {
     const parsed = JSON.parse(String(childIdsRaw ?? "[]"));
     childIds = Array.isArray(parsed)
-      ? parsed.filter((x: unknown) => typeof x === "number")
+      ? parsed.filter((x: unknown) => typeof x === "number" || typeof x === "string")
       : [];
   } catch {
     childIds = [];
@@ -82,13 +82,14 @@ export async function POST(request: Request) {
 
   if (childIds.length === 0) {
     return NextResponse.json(
-      { error: "childIds must be a non-empty array of product ids" },
+      { error: "childIds must be a non-empty array of product ids or documentIds" },
       { status: 400 }
     );
   }
 
-  const headers: Record<string, string> = {};
-  // Добавляем токен авторизации, если он задан
+  const headers: Record<string, string> = {
+    "Strapi-Response-Format": "v4",
+  };
   if (STRAPI_API_TOKEN) {
     headers.Authorization = `Bearer ${STRAPI_API_TOKEN}`;
   }
@@ -144,7 +145,7 @@ export async function POST(request: Request) {
       }
     }
 
-    // Обновляем продукты с новыми файлами (только те, которые были загружены)
+    // Обновляем продукты: Strapi 5 — в URL documentId (string), Strapi 4 — id (number)
     for (const productId of childIds) {
       const updateData: { ar_model_and?: number; ar_model_ios?: number } = {};
       if (androidId !== undefined) {
@@ -154,7 +155,7 @@ export async function POST(request: Request) {
         updateData.ar_model_ios = iosId;
       }
 
-      const patchUrl = `${origin}/api/products/${productId}`;
+      const patchUrl = `${origin}/api/products/${String(productId)}`;
       const res = await fetch(patchUrl, {
         method: "PUT",
         headers: {

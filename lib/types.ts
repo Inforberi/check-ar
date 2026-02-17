@@ -62,6 +62,8 @@ export interface StrapiResponse {
 // Normalized types for frontend
 export interface ProductChild {
   id: number;
+  /** Strapi 5: для PUT /api/products/:documentId (иначе 404) */
+  documentId?: string;
   name: string;
   slug_item: string;
   in_stock: boolean;
@@ -99,7 +101,7 @@ export interface ProductTestStatus {
   iosAutoStatus?: AutoTestStatus;
   androidAutoStatus?: AutoTestStatus;
   humanVerified?: boolean;
-   manualIncorrect?: boolean;
+  manualIncorrect?: boolean;
   notes?: string;
   lastUpdated: string;
 }

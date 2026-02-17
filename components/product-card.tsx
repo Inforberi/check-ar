@@ -47,10 +47,11 @@ export const ProductCard = ({
   const children = showOnlyManualIncorrect
     ? allChildren.filter((c) => statuses[c.id]?.manualIncorrect)
     : allChildren;
+  // Strapi 5: в URL для PUT нужен documentId, иначе 404
   const childIdsForUpload = allChildren
     .filter((c) => statuses[c.id]?.manualIncorrect)
-    .map((c) => c.id);
-  const allChildIds = allChildren.map((c) => c.id);
+    .map((c) => (c.documentId ?? c.id) as number | string);
+  const allChildIds = allChildren.map((c) => (c.documentId ?? c.id) as number | string);
 
   const withArCount = allChildren.filter(
     (c) => c.ar_model_ios || c.ar_model_and
@@ -272,7 +273,7 @@ export const ProductCard = ({
                         </a>
                       )}
                       <a
-                        href={`${STRAPI_ADMIN_URL}/${child.id}?plugins[i18n][locale]=ru`}
+                        href={`${STRAPI_ADMIN_URL}/${child.documentId ?? child.id}?plugins[i18n][locale]=ru`}
                         target="_blank"
                         rel="noopener noreferrer"
                         className="inline-flex items-center gap-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors cursor-pointer"

@@ -124,7 +124,8 @@ export interface UploadModelsModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   varProductId: number;
-  childIds: number[];
+  /** id (Strapi 4) или documentId (Strapi 5) для PUT /api/products/:id */
+  childIds: (number | string)[];
   onSuccess?: () => void;
 }
 

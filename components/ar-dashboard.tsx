@@ -19,15 +19,33 @@ const STORAGE_KEYS = {
   STATUS_FILTER: "ar-dashboard-status-filter",
 };
 
-// Extract product IDs from Strapi Admin URLs
-const extractIdsFromUrls = (urlText: string): number[] => {
+// Extract product IDs/documentIds from Strapi Admin URLs (v4: number, v5: documentId string)
+const extractIdsFromUrls = (urlText: string): (number | string)[] => {
   const lines = urlText.split("\n").filter((l) => l.trim());
-  const ids: number[] = [];
+  const ids: (number | string)[] = [];
   for (const line of lines) {
-    // Match patterns like /123? or /123 at the end
-    const match = line.match(/\/(\d+)(?:\?|$)/);
-    if (match) {
-      ids.push(parseInt(match[1], 10));
+    const trimmed = line.trim();
+    if (/^\d+$/.test(trimmed)) {
+      ids.push(parseInt(trimmed, 10));
+      continue;
+    }
+    if (/^[a-zA-Z0-9_-]{16,}$/.test(trimmed)) {
+      ids.push(trimmed);
+      continue;
+    }
+    try {
+      const path = new URL(trimmed.startsWith("http") ? trimmed : `https://x/${trimmed}`).pathname;
+      const segments = path.split("/").filter(Boolean);
+      const last = segments[segments.length - 1];
+      if (!last) continue;
+      if (/^\d+$/.test(last)) {
+        ids.push(parseInt(last, 10));
+      } else if (/^[a-zA-Z0-9_-]{16,}$/.test(last)) {
+        ids.push(last);
+      }
+    } catch {
+      const match = line.match(/\/(\d+)(?:\?|$)/);
+      if (match) ids.push(parseInt(match[1], 10));
     }
   }
   return ids;
@@ -126,11 +144,15 @@ export const ArDashboard = () => {
   const filteredProducts = useMemo(() => {
     let result = products;
 
-    // URL search filter (takes priority)
+    // URL search filter (takes priority); id — Strapi 4, documentId — Strapi 5
     if (urlSearchIds.length > 0) {
       result = result.filter((p) => {
         const children = p.childrens || [];
-        return children.some((c) => urlSearchIds.includes(c.id));
+        return children.some(
+          (c) =>
+            urlSearchIds.includes(c.id) ||
+            (c.documentId != null && urlSearchIds.includes(c.documentId))
+        );
       });
     }
 
@@ -175,15 +197,16 @@ export const ArDashboard = () => {
 
   const filteredChildrenCount = useMemo(() => {
     const visibleIds = new Set<number>();
+    const visibleDocumentIds = new Set<string>();
     for (const p of filteredProducts) {
       for (const c of p.childrens ?? []) {
         visibleIds.add(c.id);
+        if (c.documentId) visibleDocumentIds.add(c.documentId);
       }
     }
 
     const lines = urlSearch.split("\n").map((l) => l.trim()).filter(Boolean);
 
-    // Если URL-фильтра нет — считаем все варианты во всех показанных VarProduct
     if (lines.length === 0) {
       return filteredProducts.reduce(
         (acc, p) => acc + (p.childrens ? p.childrens.length : 0),
@@ -191,42 +214,43 @@ export const ArDashboard = () => {
       );
     }
 
-    // Если есть URL-фильтр — считаем КОЛИЧЕСТВО ССЫЛОК, для которых найден видимый вариант
+    const parsed = extractIdsFromUrls(urlSearch);
     let matched = 0;
-    for (const line of lines) {
-      const match = line.match(/\/(\d+)(?:\?|$)/);
-      if (!match) continue;
-      const id = parseInt(match[1], 10);
-      if (!Number.isNaN(id) && visibleIds.has(id)) {
-        matched += 1;
-      }
+    for (const id of parsed) {
+      if (typeof id === "number" && visibleIds.has(id)) matched += 1;
+      else if (typeof id === "string" && visibleDocumentIds.has(id)) matched += 1;
     }
     return matched;
   }, [filteredProducts, urlSearch]);
 
   const unmatchedUrls = useMemo(() => {
     const visibleIds = new Set<number>();
+    const visibleDocumentIds = new Set<string>();
     for (const p of filteredProducts) {
       for (const c of p.childrens ?? []) {
         visibleIds.add(c.id);
+        if (c.documentId) visibleDocumentIds.add(c.documentId);
       }
     }
 
     const lines = urlSearch.split("\n").map((l) => l.trim()).filter(Boolean);
     const bad: string[] = [];
+    const parsedPerLine = lines.map((l) => extractIdsFromUrls(l).filter((id, i, arr) => arr.indexOf(id) === i));
 
-    for (const line of lines) {
-      const match = line.match(/\/(\d+)(?:\?|$)/);
-      if (!match) {
+    for (let i = 0; i < lines.length; i++) {
+      const line = lines[i];
+      const ids = parsedPerLine[i];
+      if (ids.length === 0) {
         bad.push(line);
         continue;
       }
-      const id = parseInt(match[1], 10);
-      if (Number.isNaN(id) || !visibleIds.has(id)) {
-        bad.push(line);
-      }
+      const found = ids.some(
+        (id) =>
+          (typeof id === "number" && visibleIds.has(id)) ||
+          (typeof id === "string" && visibleDocumentIds.has(id))
+      );
+      if (!found) bad.push(line);
     }
-
     return bad;
   }, [filteredProducts, urlSearch]);
 
@@ -261,7 +285,7 @@ export const ArDashboard = () => {
         ? (vp.childrens ?? []).filter((c) => statuses[c.id]?.manualIncorrect)
         : vp.childrens ?? [];
       for (const child of childrenToExport) {
-        const adminUrl = `${STRAPI_ADMIN_URL}/${child.id}`;
+        const adminUrl = `${STRAPI_ADMIN_URL}/${child.documentId ?? child.id}`;
         const productUrl = child.slug_item
           ? `${PROJECT_URL}/product/${child.slug_item}`
           : "";
